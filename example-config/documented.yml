@@ -1,0 +1,93 @@
+#
+# Define the vagrant vm host configuration.
+# You can only have one "host" configuration.
+##
+host:
+  cpus: 2                 # CPUs to assign to the VM, make sure you leave enough for your computer to still run!
+  ram: 1024               # RAM to assign to the VM, make sure you leave enough for your computer to still run!
+  ip: 172.73.11.11        # Static IP assigned to the VM, make sure it's unique for each VM you configure.
+  box: ubuntu/trusty64    # Vagrant box used for the VM, we use an older version of Ubuntu but feel free to change as needed
+
+  # Option to mount local dirs to the VM itself, used in case you don't want to configure any projects.
+  mount_dirs:
+    - local: "."                        # This is the path on your computer, relative to the Vagrantfile not the config
+      remote: "/srv/some_place_fancy"   # This is the path that will be available on the VM
+
+#
+# Add as many projects to the projects configuration as you would like.
+# This gives you the ability to run many projects in a single VM or just one, your call.
+##
+projects:
+  - name: project              # Give your project a name so it can be referenced
+    host_name: project.local   # Define a host to relate to this project (you must set up ip:host mapping in your own /etc/hosts file) @NOTE: must be valid hostname format
+
+  # Option to mount local dirs to the VM itself, used in case you don't want to configure any projects.
+  mount_dirs:
+    - local: "."                  # This is the path on your computer, relative to the Vagrantfile not the config
+      remote: "/srv/project"      # This is the path that will be available on the VM
+
+    # Optional provisioner per project, this is applied to the host vm
+    # Provisioning options: https://www.vagrantup.com/docs/provisioning
+    # This provisioning gets executed on the VM
+    # This allows you to define and execute custom build scripts per project
+    provision:
+      shell:
+        - path: "vagrant_provision.sh"  # this is relative to the Vagrantfile
+
+    # Optional port mapping to from your computer to the VM
+    ports:
+      - guest: 80       # Port on the VM that this host port maps to
+        host: 80        # Port exposed to the VM from the host
+        protocol: tcp   # Type of traffic the port will be
+
+    #
+    # Optional configuration of docker provisioing onto the VM
+    # You can use this to fully manage containers or just use the features you want
+    #
+    docker:
+
+      # Option to pull down known Docker image(s)
+      # Use this if you want to just pull down an image, mainly for reference or testing
+      pull_images:
+        - name: "ubuntu:16.04"
+
+      # Option to build new Docker image(s)
+      # Use this if you want Vagrant to build a Docker image for you when you provision the VM
+      # This is helpful for automating the image building on the VM and making it available for you to run your container
+      build:
+        - name: "project"                             # The name of your Docker image @NOTE: must be hostname valid format, unless you set your own hostname in the args.
+          dockerfile_remote_path: "/srv/project"      # Set the path, from the VM, to a directory that contains your Dockerfile
+          args: "-t project:latest"                   # Supports any args for ```docker build`` command, tagging is a good option left for reference
+
+      # Option to run Docker image(s)
+      # Use this if you want to run containers in the VM
+      run:
+        - name: "project"                 # Name of your container
+          image: "project:latest"         # Name of the image you want to run
+          args: "-p 0.0.0.0:81:81 -t"     # Supports any args for ```docker run``` command, port mapping and tty are good options left for reference
+          cmd: ""                         # Option to set the command to execute, if you don't already have one defined in the Dockerfile
+          daemonize: true                 # Forces the container to be demonized
+
+          # Option to mount dirs from your host to the container
+          # in this example we override the existing code base to allow
+          # us to test our code changes in real time w/o rebuilding anything.
+          mount_dirs:
+            - local: "/srv/project"         # Path on the VM that you want to expose on the container
+              remote: "/var/www/project"    # Path on the container that the local path should mount to
+
+    # yml path(s) must reference path on vagrant vm
+    # the vagrant plugin description is here: https://github.com/leighmcculloch/vagrant-docker-compose
+    # we are mapping these fields to that plugin, so anything it supports there you may define in the below configuration.
+    docker_compose:
+
+      # Define the path, on the vagrant vm, where we can find the docker compose file
+      yml:
+        - /srv/some_place_fancy/docker-compose.yml
+
+      # Make sure you have the proper supported version defined
+      compose_version: 1.9.0
+
+      # This is the project name, mostly used for separation between apps
+      project_name: project
+      options:
+      run: always

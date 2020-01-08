@@ -1,0 +1,76 @@
+#
+# Define the vagrant vm host configuration.
+##
+host:
+  cpus: 2
+  ram: 1024
+  ip: 172.73.11.11
+  box: ubuntu/trusty64
+  root_size: 20GB
+
+#
+# Add as many projects to the projects configuration as you would like.
+# This gives you the ability to run many projects in a single VM or just one, your call.
+##
+projects:
+  - name: project
+    host_name: project.local
+    mount_dirs:
+      - local: "."
+        remote: "/srv/project"
+
+    # Optional provisioner per project, this is applied to the host vm
+    provision:
+      shell:
+        - path: "vagrant_provision.sh"
+
+    # Optional port mapping to from your computer to the VM
+    ports:
+      - guest: 80
+        host: 80
+        protocol: tcp
+
+    # Option to configure some docker actions.
+    docker:
+
+      # Option to pull down known Docker image(s)
+      pull_images:
+        - name: "ubuntu:16.04"
+
+      # Option to build new Docker image(s)
+      build:
+        - name: "project"
+          dockerfile_remote_path: "/srv/project"
+          args: "-t project:latest"
+
+      # Option to run Docker image(s)
+      run:
+        - name: "project"
+          image: "project:latest"
+          args: "-p 0.0.0.0:81:81 -t"
+          cmd: ""
+          daemonize: true
+
+          # Option to mount dirs from your host to the container
+          # in this example we override the existing code base to allow
+          # us to test our code changes in real time w/o rebuilding anything.
+          mount_dirs:
+            - local: "/srv/project"
+              remote: "/var/www/project"
+
+    # yml path(s) must reference path on vagrant vm
+    # the vagrant plugin description is here: https://github.com/leighmcculloch/vagrant-docker-compose
+    # we are mapping these fields to that plugin, so anything it supports there you may define in the below configuration.
+    docker_compose:
+
+      # Define the path, on the vagrant vm, where we can find the docker compose file
+      yml:
+        - /srv/project/docker-compose.yml
+
+      # Make sure you have the proper supported version defined
+      compose_version: 1.9.0
+
+      # This is the project name, mostly used for seperation between apps
+      project_name: project
+      options:
+      run: always
